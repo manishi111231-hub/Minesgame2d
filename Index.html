@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mines Game 2D</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; user-select: none; }
+        body { background: #084aa3; min-height: 100vh; display: flex; justify-content: center; align-items: center; color: #ffffff; position: relative; }
+        
+        /* Welcome Popup Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(2, 19, 46, 0.85);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .popup-box {
+            background: linear-gradient(145deg, #05234e, #0d3161);
+            border: 2px solid #ffcc00;
+            border-radius: 20px;
+            padding: 25px;
+            width: 320px;
+            text-align: center;
+            box-shadow: 0 0 25px rgba(255, 204, 0, 0.4);
+            animation: popupAnimation 0.4s ease-out;
+        }
+
+        @keyframes popupAnimation {
+            0% { transform: scale(0.7); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .popup-title { color: #ffcc00; font-size: 20px; font-weight: 900; letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase; }
+        .creator-tag { color: #38bdf8; font-size: 16px; font-weight: 700; margin-bottom: 20px; text-shadow: 0 0 8px rgba(56, 189, 248, 0.5); }
+
+        .btn-play-now {
+            background: linear-gradient(180deg, #22c55e, #15803d);
+            color: #fff;
+            border: none;
+            padding: 12px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+            transition: 0.2s;
+        }
+
+        .btn-play-now:hover { transform: scale(1.05); filter: brightness(1.1); }
+
+        /* Game Main UI */
+        .game-card { background: #05234e; border: 2px solid #0d3b7a; border-radius: 16px; padding: 20px; width: 340px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); display: flex; flex-direction: column; align-items: center; }
+        .game-title { color: #ffcc00; font-size: 22px; font-weight: 900; letter-spacing: 2px; text-shadow: 0 0 12px rgba(255, 204, 0, 0.7); margin-bottom: 12px; text-align: center; }
+
+        .top-bar { width: 100%; display: flex; justify-content: space-between; align-items: center; background: #02132e; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: bold; margin-bottom: 12px; border: 1px solid #0d3b7a; }
+        .wallet-box { color: #ffcc00; display: flex; align-items: center; gap: 5px; }
+
+        .thin-control { width: 100%; display: flex; gap: 8px; margin-bottom: 12px; }
+        select { background: #082852; color: #fff; padding: 8px; flex: 1; border: 1px solid #144485; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .bet-box { display: flex; align-items: center; background: #082852; border: 1px solid #144485; border-radius: 6px; flex: 1; overflow: hidden; }
+        .bet-btn { background: #0d3b7a; color: #fff; width: 28px; height: 100%; border: none; font-weight: bold; cursor: pointer; }
+        .bet-btn:hover { background: #1752a3; }
+        .bet-display { flex: 1; text-align: center; font-size: 12px; font-weight: bold; color: #ffcc00; }
+
+        .grid-container { display: flex; flex-wrap: wrap; width: 300px; margin: 0 auto 15px auto; justify-content: flex-start; }
+        .grid-container.locked .tile { cursor: not-allowed !important; opacity: 0.75; }
+        .tile { width: 52px; height: 52px; margin: 4px; background: linear-gradient(180deg, #0d3161, #061936); border: 1px solid #1a4f91; border-radius: 8px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+        .tile.star { background: linear-gradient(180deg, #ffc107, #ff8800) !important; border: 1px solid #ffe57f !important; }
+        .tile.star::after { content: '⭐'; font-size: 24px; }
+        .tile.bomb { background: linear-gradient(180deg, #ff4d4d, #cc0000) !important; border: 1px solid #ff9999 !important; }
+        .tile.bomb::after { content: '💣'; font-size: 24px; }
+
+        .btn-main { background: #22c55e; color: #fff; font-size: 15px; font-weight: bold; padding: 12px; cursor: pointer; border: none; border-radius: 8px; width: 100%; }
+        .btn-collect { background: #f97316 !important; }
+        .btn-again { background: #0284c7 !important; }
+    </style>
+</head>
+<body>
+
+<!-- Welcome Popup Overlay -->
+<div class="modal-overlay" id="welcome-modal">
+    <div class="popup-box">
+        <div class="popup-title">🎮 WELCOME TO MINES</div>
+        <div class="creator-tag">Created by Manish Bhatt</div>
+        <button class="btn-play-now" onclick="closeWelcomePopup()">LET'S PLAY 🚀</button>
+    </div>
+</div>
+
+<div class="game-card">
+    <h1 class="game-title">MINES GAME 2D</h1>
+
+    <div class="top-bar">
+        <div class="wallet-box">👛 COINS: <span id="wallet-coins">100.00</span></div>
+        <div>PROFIT: <span id="profit-val" style="color:#22c55e;">+0.00</span></div>
+    </div>
+
+    <div class="thin-control">
+        <select id="mines-count" onchange="resetToIdleState()">
+            <script>for(let i=1; i<=24; i++) document.write(`<option value="${i}" ${i===3?'selected':''}>${i} ${i===1?'MINE':'MINES'}</option>`);</script>
+        </select>
+        <div class="bet-box">
+            <button class="bet-btn" onclick="adjustBet(-1)">-</button>
+            <div class="bet-display">BET: <span id="bet-amount">1</span></div>
+            <button class="bet-btn" onclick="adjustBet(1)">+</button>
+        </div>
+    </div>
+
+    <div class="grid-container locked" id="grid"></div>
+    <button class="btn-main" id="action-btn" onclick="handleMainAction()">START GAME</button>
+</div>
+
+<script>
+    const GRID_SIZE = 25;
+    let walletCoins = 100.00, betAmount = 1, minesCount = 3, currentProfit = 0.00, gameState = 'IDLE';
+    let board = [], revealed = [];
+
+    const gridEl = document.getElementById('grid'), actionBtn = document.getElementById('action-btn');
+    const walletCoinsEl = document.getElementById('wallet-coins'), profitValEl = document.getElementById('profit-val'), betAmountEl = document.getElementById('bet-amount');
+
+    function closeWelcomePopup() {
+        document.getElementById('welcome-modal').style.display = 'none';
+    }
+
+    function createBoardUI() {
+        gridEl.innerHTML = '';
+        gridEl.classList.add('locked');
+        for (let i = 0; i < GRID_SIZE; i++) {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.addEventListener('click', () => onTileClicked(i));
+            gridEl.appendChild(tile);
+        }
+    }
+
+    // 1 -> 5 -> 10 -> 15 -> 20 ... max 100 logic
+    function adjustBet(direction) {
+        if (gameState !== 'IDLE') return;
+
+        if (direction > 0) { // Plus clicked
+            if (betAmount === 1) betAmount = 5;
+            else if (betAmount < 100) betAmount += 5;
+            if (betAmount > 100) betAmount = 100;
+        } else { // Minus clicked
+            if (betAmount <= 5) betAmount = 1;
+            else betAmount -= 5;
+        }
+
+        betAmountEl.innerText = betAmount;
+    }
+
+    function resetToIdleState() {
+        gameState = 'IDLE';
+        createBoardUI();
+        document.getElementById('mines-count').disabled = false;
+        actionBtn.innerText = "START GAME";
+        actionBtn.className = "btn-main";
+        profitValEl.innerText = "+0.00";
+    }
+
+    function setupNewGame() {
+        if (betAmount > walletCoins) return;
+
+        walletCoins -= betAmount;
+        walletCoinsEl.innerText = walletCoins.toFixed(2);
+        minesCount = parseInt(document.getElementById('mines-count').value);
+        board = Array(GRID_SIZE).fill(0);
+        revealed = Array(GRID_SIZE).fill(false);
+        currentProfit = 0.00;
+        gameState = 'PLAYING';
+
+        let placedMines = 0;
+        while (placedMines < minesCount) {
+            let r = Math.floor(Math.random() * GRID_SIZE);
+            if (board[r] === 0) { board[r] = 1; placedMines++; }
+        }
+        gridEl.classList.remove('locked');
+        gridEl.querySelectorAll('.tile').forEach(t => t.className = 'tile');
+        document.getElementById('mines-count').disabled = true;
+        actionBtn.innerText = `COLLECT (+0.00)`;
+        actionBtn.className = "btn-main btn-collect";
+    }
+
+    // Dynamic Ratio Math: Low mines = small decimals, High mines = Big multiplier
+    function calculateProfitPerTile(safeFound) {
+        let safeTotal = GRID_SIZE - minesCount;
+        let riskRatio = minesCount / safeTotal;
+        
+        // Decimal precision multiplier formula
+        let multiplier = (Math.pow(1 + (riskRatio * 0.15), safeFound) - 1);
+        let win = betAmount * multiplier;
+        
+        return parseFloat(win.toFixed(2));
+    }
+
+    function onTileClicked(index) {
+        if (gameState !== 'PLAYING' || revealed[index]) return;
+        revealed[index] = true;
+        let t = gridEl.children[index];
+        if (board[index] === 1) { t.className = 'tile bomb'; gameOver(false); }
+        else {
+            t.className = 'tile star';
+            let safeFound = revealed.filter((v, i) => v && board[i] === 0).length;
+            currentProfit = calculateProfitPerTile(safeFound);
+            profitValEl.innerText = `+${currentProfit.toFixed(2)}`;
+            actionBtn.innerText = `COLLECT (+${currentProfit.toFixed(2)})`;
+            if (safeFound === (GRID_SIZE - minesCount)) collectScore();
+        }
+    }
+
+    function handleMainAction() {
+        if (gameState === 'IDLE') setupNewGame();
+        else if (gameState === 'PLAYING') collectScore();
+        else if (gameState === 'GAMEOVER') resetToIdleState();
+    }
+
+    function collectScore() {
+        walletCoins += (betAmount + currentProfit);
+        walletCoinsEl.innerText = walletCoins.toFixed(2);
+        gameOver(true);
+    }
+
+    function gameOver(isWin) {
+        gameState = 'GAMEOVER';
+        gridEl.classList.add('locked');
+        document.getElementById('mines-count').disabled = false;
+        for (let i = 0; i < GRID_SIZE; i++) if (board[i] === 1 && !revealed[i]) gridEl.children[i].className = 'tile bomb', gridEl.children[i].style.opacity = "0.6";
+        actionBtn.innerText = isWin ? `WON +${currentProfit.toFixed(2)}! PLAY AGAIN` : `BOOM! LOST ${betAmount}! PLAY AGAIN`;
+        actionBtn.className = "btn-main btn-again";
+    }
+
+    createBoardUI();
+</script>
+</body>
+</html>
